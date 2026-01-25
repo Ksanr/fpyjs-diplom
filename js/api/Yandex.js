@@ -11,15 +11,12 @@ class Yandex {
   static getToken() {
     let token = localStorage.getItem('yandexToken');
 
-    // Если токена нет в localStorage, показываем окно управления токенами
     if (!token) {
       console.log('Токен Яндекс.Диска не найден. Открываем окно управления токенами...');
 
-      // Показываем уведомление
       if (App.getModal('tokenManager')) {
         App.getModal('tokenManager').open();
       } else {
-        // Если окно управления токенами не инициализировано, используем prompt
         token = prompt('Введите OAuth-токен для Яндекс.Диска:');
         if (token) {
           localStorage.setItem('yandexToken', token);
@@ -50,7 +47,7 @@ class Yandex {
         'Content-Type': 'application/json'
       },
       data: {
-        path: encodeURIComponent(path),
+        path: path,
         url: url
       },
       callback: callback
@@ -74,7 +71,7 @@ class Yandex {
         'Authorization': `OAuth ${token}`
       },
       data: {
-        path: encodeURIComponent(path),
+        path: path,
         permanently: true
       },
       callback: callback
@@ -93,11 +90,29 @@ class Yandex {
 
     createRequest({
       method: 'GET',
-      url: `${Yandex.HOST}/resources/files`,
+      url: `${Yandex.HOST}/resources`,
       headers: {
         'Authorization': `OAuth ${token}`
       },
-      callback: callback
+      data: {
+        path: '/vk',
+        fields: '_embedded.items.name,_embedded.items.path,_embedded.items.modified,_embedded.items.size,_embedded.items.file',
+        limit: 100
+      },
+      callback: (err, response) => {
+        if (err) {
+          // Если папка не существует (ошибка 404), возвращаем пустой массив
+          if (err.message && err.message.includes('404')) {
+            callback(null, []);
+          } else {
+            callback(err, null);
+          }
+        } else {
+          // Извлекаем файлы из ответа
+          const files = response._embedded ? response._embedded.items : [];
+          callback(null, files);
+        }
+      }
     });
   }
 
@@ -135,5 +150,56 @@ class Yandex {
    */
   static clearToken() {
     localStorage.removeItem('yandexToken');
+  }
+
+  /**
+   * Проверяет существование папки /vk и создает ее если нужно
+   */
+  static ensureVkFolder(callback) {
+    const token = Yandex.getToken();
+    if (!token) {
+      callback(new Error('Токен Яндекс.Диска не установлен'), null);
+      return;
+    }
+
+    createRequest({
+      method: 'GET',
+      url: `${Yandex.HOST}/resources`,
+      headers: {
+        'Authorization': `OAuth ${token}`
+      },
+      data: {
+        path: '/vk'
+      },
+      callback: (err, response) => {
+        if (err) {
+          // Если папка не существует (ошибка 404), создаем ее
+          if (err.message && err.message.includes('404')) {
+            createRequest({
+              method: 'PUT',
+              url: `${Yandex.HOST}/resources`,
+              headers: {
+                'Authorization': `OAuth ${token}`
+              },
+              data: {
+                path: '/vk'
+              },
+              callback: (createErr, createResponse) => {
+                if (createErr) {
+                  callback(createErr, null);
+                } else {
+                  callback(null, createResponse);
+                }
+              }
+            });
+          } else {
+            callback(err, null);
+          }
+        } else {
+          // Папка уже существует
+          callback(null, response);
+        }
+      }
+    });
   }
 }

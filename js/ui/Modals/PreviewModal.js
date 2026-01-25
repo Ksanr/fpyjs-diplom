@@ -1,6 +1,6 @@
 /**
  * Класс PreviewModal
- * Используется как обозреватель загруженный файлов в облако
+ * Используется как обозреватель загруженный файлов в облаке
  */
 class PreviewModal extends BaseModal {
   constructor(element) {
@@ -54,7 +54,7 @@ class PreviewModal extends BaseModal {
             const remaining = this.element.querySelectorAll('.image-preview-container');
             if (remaining.length === 0) {
               const content = this.element.querySelector('.scrolling.content');
-              content.innerHTML = '<p>Нет загруженных файлов</p>';
+              content.innerHTML = '<p>В папке /vk/ нет загруженных файлов</p>';
             }
           });
         }
@@ -70,7 +70,7 @@ class PreviewModal extends BaseModal {
   }
 
   /**
-   * Отрисовывает изображения
+   * Отрисовывает изображения в блоке всплывающего окна
    */
   showImages(data) {
     const content = this.element.querySelector('.scrolling.content');
@@ -80,14 +80,19 @@ class PreviewModal extends BaseModal {
     }
 
     if (!data || data.length === 0) {
-      content.innerHTML = '<p>Нет загруженных файлов</p>';
+      content.innerHTML = '<p>В папке /vk/ нет загруженных файлов</p>';
       return;
     }
 
-    console.log('Отрисовываем', data.length, 'файлов:', data);
+    console.log('Отрисовываем', data.length, 'файлов из папки /vk/:', data);
 
     try {
-      const html = data.reverse().map(item => this.getImageInfo(item)).join('');
+      // Сортируем файлы по дате изменения (новые сверху)
+      const sortedData = [...data].sort((a, b) => {
+        return new Date(b.modified) - new Date(a.modified);
+      });
+
+      const html = sortedData.map(item => this.getImageInfo(item)).join('');
       content.innerHTML = html;
     } catch (error) {
       console.error('Ошибка при отрисовке изображений:', error);
@@ -96,7 +101,7 @@ class PreviewModal extends BaseModal {
   }
 
   /**
-   * Форматирует дату
+   * Форматирует дату в удобный формат
    */
   formatDate(dateString) {
     if (!dateString) return 'Неизвестно';
@@ -112,10 +117,22 @@ class PreviewModal extends BaseModal {
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'Europe/Moscow'
       };
 
-      return date.toLocaleDateString('ru-RU', options).replace(',', ' в');
+      const dateFormatted = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      const timeFormatted = date.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${dateFormatted} в ${timeFormatted}`;
     } catch (error) {
       console.error('Ошибка форматирования даты:', error);
       return 'Неизвестно';
@@ -123,7 +140,25 @@ class PreviewModal extends BaseModal {
   }
 
   /**
-   * Возвращает разметку для изображения
+   * Форматирует размер файла
+   */
+  formatSize(bytes) {
+    if (!bytes) return 'Неизвестно';
+
+    const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
+  }
+
+  /**
+   * Возвращает разметку из изображения, таблицы с описанием данных изображения и кнопок контроллеров
    */
   getImageInfo(item) {
     // Проверяем наличие необходимых полей
@@ -133,22 +168,25 @@ class PreviewModal extends BaseModal {
     }
 
     const name = item.name || 'Без имени';
-    const size = item.size ? `${Math.round(item.size / 1024)} Кб` : 'Неизвестно';
-    const date = this.formatDate(item.modified || item.created);
+    const size = this.formatSize(item.size);
+    const date = this.formatDate(item.modified);
     const path = item.path || '';
     const file = item.file || item.preview || '';
+
+    // Убираем папку /vk/ из отображаемого имени для читаемости
+    const displayName = name.startsWith('/vk/') ? name.substring(4) : name;
 
     return `
       <div class="image-preview-container">
         <img src="${file || 'https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png'}"
-             alt="${name}"
+             alt="${displayName}"
              onerror="this.src='https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png'"/>
         <table class="ui celled table">
           <thead>
-            <tr><th>Имя</th><th>Создано</th><th>Размер</th></tr>
+            <tr><th>Имя файла</th><th>Дата изменения</th><th>Размер</th></tr>
           </thead>
           <tbody>
-            <tr><td>${name}</td><td>${date}</td><td>${size}</td></tr>
+            <tr><td>${displayName}</td><td>${date}</td><td>${size}</td></tr>
           </tbody>
         </table>
         <div class="buttons-wrapper">

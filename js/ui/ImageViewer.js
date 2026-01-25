@@ -61,25 +61,37 @@ class ImageViewer {
 
       // Очищаем содержимое и показываем лоадер
       const content = modal.element.querySelector('.scrolling.content');
-      content.innerHTML = '<i class="asterisk loading icon massive"></i>';
+      content.innerHTML = '<i class="asterisk loading icon massive"></i><p style="text-align: center;">Загрузка файлов из папки /vk/...</p>';
 
       // Открываем модальное окно
       modal.open();
 
-      // Получаем файлы с Яндекс.Диска
-      Yandex.getUploadedFiles((err, response) => {
-        console.log('Ответ от Яндекс.Диска:', err, response);
+      // Получаем файлы с Яндекс.Диска из папки /vk/
+      Yandex.getUploadedFiles((err, files) => {
+        console.log('Ответ от Яндекс.Диска (папка /vk/):', err, files);
 
         if (err) {
-          content.innerHTML = `<p>Ошибка: ${err.message}</p>`;
+          content.innerHTML = `
+            <div class="ui negative message">
+              <div class="header">Ошибка при загрузке файлов</div>
+              <p>${err.message}</p>
+              <p>Убедитесь, что у вас есть доступ к папке /vk/ на Яндекс.Диске</p>
+            </div>
+          `;
           return;
         }
 
         // Проверяем структуру ответа
-        if (response && response.items) {
-          modal.showImages(response.items);
+        if (files && files.length > 0) {
+          modal.showImages(files);
         } else {
-          content.innerHTML = '<p>Нет загруженных файлов или неверный формат ответа</p>';
+          content.innerHTML = `
+            <div class="ui info message">
+              <div class="header">Папка /vk/ пуста</div>
+              <p>Здесь будут отображаться файлы, загруженные из VK</p>
+              <p>Для начала работы выберите фотографии и нажмите "Отправить на диск"</p>
+            </div>
+          `;
         }
       });
     });
