@@ -98,7 +98,7 @@ class PreviewModal extends BaseModal {
     }
   }
 
-  /**
+   /**
    * Возвращает сообщение при пустой папке
    */
   getEmptyMessage() {
@@ -222,9 +222,9 @@ class PreviewModal extends BaseModal {
     const path = item.path || '';
     const isImage = this.isImageFile(name);
 
-    // Получаем URL для превью или скачивания
-    const previewUrl = item.previewUrl || '';
-    const downloadUrl = item.downloadUrl || '';
+    // Используем прямую ссылку из item.file для изображения
+    const imageUrl = item.file || '';
+    const downloadUrl = item.downloadUrl || item.file || '';
 
     // Убираем папку /vk/ из отображаемого имени
     const displayName = name.startsWith('/vk/') ? name.substring(4) : name;
@@ -234,34 +234,27 @@ class PreviewModal extends BaseModal {
       ? displayName.substring(0, 27) + '...'
       : displayName;
 
-    // Для изображений используем специальный подход
+    // Для изображений используем прямую ссылку из item.file
+    // Для не-изображений показываем иконку
     let imageHtml = '';
 
-    if (isImage) {
-      if (previewUrl) {
-        // Используем прокси для изображений, чтобы обойти CORS
-        imageHtml = `
-          <div class="image-wrapper" style="position: relative; width: 100%; height: 200px; overflow: hidden;">
-            <img src="${this.getProxyImageUrl(previewUrl)}"
-                 alt="${displayName}"
-                 style="width: 100%; height: 100%; object-fit: contain;"
-                 onerror="this.onerror=null; this.src='https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png';" />
-          </div>
-        `;
-      } else {
-        // Если нет previewUrl, показываем заглушку с иконкой
-        imageHtml = `
-          <div class="no-preview" style="width: 100%; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; background: #f8f9fa; border-radius: 6px;">
-            <i class="image outline icon massive"></i>
-            <p style="margin-top: 10px;">Нет превью</p>
-            <p style="font-size: 12px; color: #adb5bd;">(требуется авторизация)</p>
-          </div>
-        `;
-      }
-    } else {
-      // Для не-изображений показываем иконку типа файла
+    if (isImage && imageUrl) {
       imageHtml = `
-        <div class="file-icon" style="text-align: center; padding: 40px 0; color: #6c757d; background: #f8f9fa; border-radius: 6px;">
+        <img src="${imageUrl}"
+          alt="${displayName}"
+          style="width: 100%; height: 200px; object-fit: contain;"
+          onerror="window.handleImageError(this)" />
+      `;
+    } else if (isImage) {
+      imageHtml = `
+        <div class="no-image" style="width: 100%; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d;">
+          <i class="image outline icon massive"></i>
+          <p style="margin-top: 10px;">Нет превью</p>
+        </div>
+      `;
+    } else {
+      imageHtml = `
+        <div class="file-icon" style="text-align: center; padding: 40px 0; color: #6c757d;">
           <i class="file outline icon massive"></i>
           <p style="margin-top: 10px; font-size: 12px;">${name.split('.').pop().toUpperCase() || 'ФАЙЛ'}</p>
         </div>
@@ -270,7 +263,9 @@ class PreviewModal extends BaseModal {
 
     return `
       <div class="image-preview-container" data-file-path="${path}">
-        ${imageHtml}
+        <div class="image-wrapper" style="margin-bottom: 15px;">
+          ${imageHtml}
+        </div>
         <table class="ui celled compact table">
           <tbody>
             <tr>
@@ -308,15 +303,5 @@ class PreviewModal extends BaseModal {
         </div>
       </div>
     `;
-  }
-
-  /**
-   * Создает URL для прокси изображения (обход CORS)
-   */
-  getProxyImageUrl(originalUrl) {
-    // Используем CORS Anywhere или аналогичный прокси
-    // Это демо-версия, в продакшене нужен свой прокси
-    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-    return proxyUrl + originalUrl;
   }
 }
