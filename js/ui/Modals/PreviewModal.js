@@ -13,12 +13,9 @@ class PreviewModal extends BaseModal {
    */
   registerEvents() {
     // Закрытие по крестику
-    const closeIcon = this.element.querySelector('.x.icon');
-    if (closeIcon) {
-      closeIcon.addEventListener('click', () => {
-        this.close();
-      });
-    }
+    this.element.querySelector('.x.icon').addEventListener('click', () => {
+      this.close();
+    });
 
     // Обработка кликов в контенте
     const content = this.element.querySelector('.scrolling.content');
@@ -35,19 +32,14 @@ class PreviewModal extends BaseModal {
             return;
           }
 
-          if (!confirm('Вы уверены, что хотите удалить этот файл?')) {
-            return;
-          }
-
           // Показываем индикатор загрузки
-          const originalClass = icon.className;
           icon.className = 'icon spinner loading';
           button.classList.add('disabled');
 
           Yandex.removeFile(path, (err, response) => {
             if (err) {
               alert(`Ошибка при удалении: ${err.message}`);
-              icon.className = originalClass;
+              icon.className = 'trash icon';
               button.classList.remove('disabled');
               return;
             }
@@ -62,7 +54,7 @@ class PreviewModal extends BaseModal {
             const remaining = this.element.querySelectorAll('.image-preview-container');
             if (remaining.length === 0) {
               const content = this.element.querySelector('.scrolling.content');
-              content.innerHTML = this.getEmptyMessage();
+              content.innerHTML = '<p>В папке /vk/ нет загруженных файлов</p>';
             }
           });
         }
@@ -71,50 +63,10 @@ class PreviewModal extends BaseModal {
         if (e.target.closest('.download')) {
           const button = e.target.closest('.download');
           const fileUrl = button.dataset.file;
-
-          if (!fileUrl) {
-            alert('Не указан URL для скачивания');
-            return;
-          }
-
-          // Показываем индикатор загрузки
-          const icon = button.querySelector('i');
-          const originalClass = icon.className;
-          icon.className = 'icon spinner loading';
-          button.classList.add('disabled');
-
-          // Скачиваем файл
-          setTimeout(() => {
-            Yandex.downloadFileByUrl(fileUrl);
-
-            // Восстанавливаем кнопку через 2 секунды
-            setTimeout(() => {
-              icon.className = originalClass;
-              button.classList.remove('disabled');
-            }, 2000);
-          }, 500);
+          Yandex.downloadFileByUrl(fileUrl);
         }
       });
     }
-  }
-
-  /**
-   * Возвращает сообщение при пустой папке
-   */
-  getEmptyMessage() {
-    return `
-      <div class="ui placeholder segment" style="width: 100%; margin: 50px auto; text-align: center;">
-        <div class="ui icon header">
-          <i class="folder open outline icon" style="font-size: 3em; color: #6c757d;"></i>
-          <div class="content" style="margin-top: 20px;">
-            Папка /vk/ пуста
-            <div class="sub header" style="margin-top: 10px;">
-              Загрузите фотографии из VK, нажав кнопку "Отправить на диск"
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
   }
 
   /**
@@ -128,11 +80,11 @@ class PreviewModal extends BaseModal {
     }
 
     if (!data || data.length === 0) {
-      content.innerHTML = this.getEmptyMessage();
+      content.innerHTML = '<p>В папке /vk/ нет загруженных файлов</p>';
       return;
     }
 
-    console.log('Отрисовываем файлы:', data);
+    console.log('Отрисовываем', data.length, 'файлов из папки /vk/:', data);
 
     try {
       // Сортируем файлы по дате изменения (новые сверху)
@@ -140,27 +92,12 @@ class PreviewModal extends BaseModal {
         return new Date(b.modified) - new Date(a.modified);
       });
 
-      // Формируем HTML для каждого файла
       const html = sortedData.map(item => this.getImageInfo(item)).join('');
       content.innerHTML = html;
-
     } catch (error) {
       console.error('Ошибка при отрисовке изображений:', error);
-      content.innerHTML = `
-        <div class="ui negative message" style="width: 100%;">
-          <div class="header">Ошибка при отображении файлов</div>
-          <p>${error.message}</p>
-        </div>
-      `;
+      content.innerHTML = `<p>Ошибка при отображении файлов: ${error.message}</p>`;
     }
-  }
-
-  /**
-   * Проверяет, является ли файл изображением
-   */
-  isImageFile(filename) {
-    if (!filename) return false;
-    return /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(filename);
   }
 
   /**
@@ -175,18 +112,27 @@ class PreviewModal extends BaseModal {
         return 'Неизвестно';
       }
 
-      const months = [
-        'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
-      ];
+      const options = {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Moscow'
+      };
 
-      const day = date.getDate();
-      const month = months[date.getMonth()];
-      const year = date.getFullYear();
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+      const dateFormatted = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
 
-      return `${day} ${month} ${year} г. в ${hours}:${minutes}`;
+      const timeFormatted = date.toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${dateFormatted} в ${timeFormatted}`;
     } catch (error) {
       console.error('Ошибка форматирования даты:', error);
       return 'Неизвестно';
@@ -199,124 +145,61 @@ class PreviewModal extends BaseModal {
   formatSize(bytes) {
     if (!bytes) return 'Неизвестно';
 
-    if (bytes < 1024) {
-      return `${bytes} Б`;
-    } else if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} КБ`;
-    } else if (bytes < 1024 * 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-    } else {
-      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} ГБ`;
+    const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+    let size = bytes;
+    let unitIndex = 0;
+
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
+
+    return `${size.toFixed(1)} ${units[unitIndex]}`;
   }
 
   /**
-   * Возвращает разметку для файла
+   * Возвращает разметку из изображения, таблицы с описанием данных изображения и кнопок контроллеров
    */
   getImageInfo(item) {
-    if (!item) return '';
+    // Проверяем наличие необходимых полей
+    if (!item) {
+      console.error('Элемент данных пустой');
+      return '<div class="ui message error">Ошибка данных файла</div>';
+    }
 
     const name = item.name || 'Без имени';
     const size = this.formatSize(item.size);
     const date = this.formatDate(item.modified);
     const path = item.path || '';
-    const isImage = this.isImageFile(name);
+    const file = item.file || item.preview || '';
 
-    // Получаем URL для превью или скачивания
-    const previewUrl = item.previewUrl || '';
-    const downloadUrl = item.downloadUrl || '';
-
-    // Убираем папку /vk/ из отображаемого имени
+    // Убираем папку /vk/ из отображаемого имени для читаемости
     const displayName = name.startsWith('/vk/') ? name.substring(4) : name;
 
-    // Обрезаем длинные имена
-    const shortName = displayName.length > 30
-      ? displayName.substring(0, 27) + '...'
-      : displayName;
-
-    // Для изображений используем специальный подход
-    let imageHtml = '';
-
-    if (isImage) {
-      if (previewUrl) {
-        // Используем прокси для изображений, чтобы обойти CORS
-        imageHtml = `
-          <div class="image-wrapper" style="position: relative; width: 100%; height: 200px; overflow: hidden;">
-            <img src="${this.getProxyImageUrl(previewUrl)}"
-                 alt="${displayName}"
-                 style="width: 100%; height: 100%; object-fit: contain;"
-                 onerror="this.onerror=null; this.src='https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png';" />
-          </div>
-        `;
-      } else {
-        // Если нет previewUrl, показываем заглушку с иконкой
-        imageHtml = `
-          <div class="no-preview" style="width: 100%; height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #6c757d; background: #f8f9fa; border-radius: 6px;">
-            <i class="image outline icon massive"></i>
-            <p style="margin-top: 10px;">Нет превью</p>
-            <p style="font-size: 12px; color: #adb5bd;">(требуется авторизация)</p>
-          </div>
-        `;
-      }
-    } else {
-      // Для не-изображений показываем иконку типа файла
-      imageHtml = `
-        <div class="file-icon" style="text-align: center; padding: 40px 0; color: #6c757d; background: #f8f9fa; border-radius: 6px;">
-          <i class="file outline icon massive"></i>
-          <p style="margin-top: 10px; font-size: 12px;">${name.split('.').pop().toUpperCase() || 'ФАЙЛ'}</p>
-        </div>
-      `;
-    }
-
     return `
-      <div class="image-preview-container" data-file-path="${path}">
-        ${imageHtml}
-        <table class="ui celled compact table">
+      <div class="image-preview-container">
+        <img src="${file || 'https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png'}"
+             alt="${displayName}"
+             onerror="this.src='https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png'"/>
+        <table class="ui celled table">
+          <thead>
+            <tr><th>Имя файла</th><th>Дата изменения</th><th>Размер</th></tr>
+          </thead>
           <tbody>
-            <tr>
-              <td class="collapsing"><strong>Имя:</strong></td>
-              <td title="${displayName}">${shortName}</td>
-            </tr>
-            <tr>
-              <td class="collapsing"><strong>Дата:</strong></td>
-              <td>${date}</td>
-            </tr>
-            <tr>
-              <td class="collapsing"><strong>Размер:</strong></td>
-              <td>${size}</td>
-            </tr>
-            <tr>
-              <td class="collapsing"><strong>Тип:</strong></td>
-              <td>${isImage ? 'Изображение' : 'Файл'}</td>
-            </tr>
+            <tr><td>${displayName}</td><td>${date}</td><td>${size}</td></tr>
           </tbody>
         </table>
         <div class="buttons-wrapper">
-          <button class="ui labeled icon red basic button delete" data-path="${path}"
-                  title="Удалить файл с Яндекс.Диска">
-            <i class="trash icon"></i>
+          <button class="ui labeled icon red basic button delete" data-path="${path}">
             Удалить
+            <i class="trash icon"></i>
           </button>
-          <button class="ui labeled icon violet basic button download"
-                  data-file="${downloadUrl}"
-                  data-filename="${displayName}"
-                  title="Скачать файл на компьютер"
-                  ${!downloadUrl ? 'disabled' : ''}>
-            <i class="download icon"></i>
+          <button class="ui labeled icon violet basic button download" data-file="${file}">
             Скачать
+            <i class="download icon"></i>
           </button>
         </div>
       </div>
     `;
-  }
-
-  /**
-   * Создает URL для прокси изображения (обход CORS)
-   */
-  getProxyImageUrl(originalUrl) {
-    // Используем CORS Anywhere или аналогичный прокси
-    // Это демо-версия, в продакшене нужен свой прокси
-    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-    return proxyUrl + originalUrl;
   }
 }
