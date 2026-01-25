@@ -157,8 +157,6 @@ class FileUploaderModal extends BaseModal {
     // Блокируем поле ввода
     const inputContainer = input.closest('.ui.action.input');
     inputContainer.classList.add('disabled');
-
-    // Убираем ошибки
     inputContainer.classList.remove('error');
 
     const imageUrl = imageContainer.querySelector('img').src;
@@ -192,17 +190,19 @@ class FileUploaderModal extends BaseModal {
           return;
         }
 
-        // Успешная загрузка
-        console.log('Файл успешно загружен:', uploadResponse);
+        // Успешная загрузка (файл в очереди)
+        console.log('Файл поставлен в очередь на загрузку:', uploadResponse);
 
-        // Добавляем анимацию успеха
+        // Добавляем анимацию успеха, но оставляем контейнер
         const button = imageContainer.querySelector('.button');
         const icon = button.querySelector('i');
         icon.className = 'check icon';
         button.classList.add('positive');
+        button.innerHTML = '<i class="check icon"></i> Загружается...';
 
-        // Через 1 секунду удаляем контейнер
+        // Через 3 секунды удаляем контейнер (предполагая, что загрузка завершена)
         setTimeout(() => {
+          // Можно проверить статус загрузки, но для простоты просто удаляем
           imageContainer.remove();
 
           // Если больше нет изображений, закрываем модалку
@@ -210,7 +210,7 @@ class FileUploaderModal extends BaseModal {
           if (remaining.length === 0) {
             this.close();
           }
-        }, 1000);
+        }, 3000);
       });
     });
   }

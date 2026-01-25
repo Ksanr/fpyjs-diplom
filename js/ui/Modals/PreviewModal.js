@@ -41,29 +41,44 @@ class PreviewModal extends BaseModal {
 
           // Показываем индикатор загрузки
           const originalClass = icon.className;
+          const originalHTML = button.innerHTML;
           icon.className = 'icon spinner loading';
           button.classList.add('disabled');
+          button.innerHTML = icon.outerHTML + ' Удаление...';
 
           Yandex.removeFile(path, (err, response) => {
             if (err) {
               alert(`Ошибка при удалении: ${err.message}`);
+              // Восстанавливаем кнопку
               icon.className = originalClass;
+              button.innerHTML = originalHTML;
               button.classList.remove('disabled');
               return;
             }
 
-            // Удаляем контейнер с изображением
-            const container = button.closest('.image-preview-container');
-            if (container) {
-              container.remove();
-            }
+            // Успешное удаление
+            console.log('Удаление успешно:', response);
 
-            // Если больше нет файлов, показываем сообщение
-            const remaining = this.element.querySelectorAll('.image-preview-container');
-            if (remaining.length === 0) {
-              const content = this.element.querySelector('.scrolling.content');
-              content.innerHTML = this.getEmptyMessage();
-            }
+            // Меняем иконку на успех
+            icon.className = 'check icon';
+            button.innerHTML = icon.outerHTML + ' Удалено';
+            button.classList.remove('disabled');
+            button.classList.add('positive');
+
+            // Удаляем контейнер с изображением через 1 секунду
+            setTimeout(() => {
+              const container = button.closest('.image-preview-container');
+              if (container) {
+                container.remove();
+              }
+
+              // Если больше нет файлов, показываем сообщение
+              const remaining = this.element.querySelectorAll('.image-preview-container');
+              if (remaining.length === 0) {
+                const content = this.element.querySelector('.scrolling.content');
+                content.innerHTML = this.getEmptyMessage();
+              }
+            }, 1000);
           });
         }
 
@@ -221,6 +236,12 @@ class PreviewModal extends BaseModal {
     const date = this.formatDate(item.modified);
     const path = item.path || '';
     const isImage = this.isImageFile(name);
+
+    // Добавил отладку
+    console.log('Информация о файле для отображения:');
+    console.log('- Имя:', name);
+    console.log('- Путь из API:', item.path);
+    console.log('- Форматированный путь:', path);
 
     // Используем прямую ссылку из item.file для изображения
     const imageUrl = item.file || '';

@@ -42,24 +42,35 @@ class Yandex {
       method: 'POST',
       url: `${Yandex.HOST}/resources/upload`,
       headers: {
-        'Authorization': `OAuth ${token}`,
-        'Content-Type': 'application/json'
+        'Authorization': `OAuth ${token}`
       },
       data: {
-        path: encodeURIComponent(fullPath),
+        path: fullPath,  // Не кодируем здесь!
         url: url
       },
       callback: (err, response) => {
-        if (!err && response) {
-          // Получаем информацию о загруженном файле
-          this.getFileInfo(fullPath, (infoErr, fileInfo) => {
-            if (!infoErr && fileInfo) {
-              response.fileInfo = fileInfo;
-            }
-            callback(err, response);
-          });
-        } else {
+        if (err) {
           callback(err, response);
+        } else {
+          // Для загрузки по URL Яндекс.Диск возвращает 202 Accepted
+          // и начинает загрузку в фоне. Файл может быть недоступен сразу.
+
+          // Проверяем, является ли ответ 202 Accepted
+          if (response && (response.operation_id || response.href)) {
+            // Загрузка началась успешно, но файл еще создается
+            // Не пытаемся получить информацию сразу
+            console.log('Загрузка файла начата:', fullPath);
+
+            // Можно вернуть специальный объект
+            callback(null, {
+              success: true,
+              path: fullPath,
+              message: 'Файл поставлен в очередь на загрузку',
+              status: 'pending'
+            });
+          } else {
+            callback(null, response);
+          }
         }
       }
     });
@@ -107,17 +118,44 @@ class Yandex {
 
     Yandex.publicUrlCache.delete(path);
 
-    createRequest({
+    console.log('Удаление файла по пути:', path);
+
+    // Формируем правильный URL
+    // Яндекс.Диск API ожидает путь в формате "disk:/vk/..."
+    // и требует однократного кодирования
+    const encodedPath = encodeURIComponent(path);
+    const url = `${Yandex.HOST}/resources?path=${encodedPath}&permanently=true`;
+
+    console.log('URL для удаления:', url);
+
+    fetch(url, {
       method: 'DELETE',
-      url: `${Yandex.HOST}/resources`,
       headers: {
-        'Authorization': `OAuth ${token}`
-      },
-      data: {
-        path: encodeURIComponent(path),
-        permanently: true
-      },
-      callback: callback
+        'Authorization': `OAuth ${token}`,
+        'Accept': 'application/json'
+      }
+    })
+    .then(async response => {
+      console.log('Статус ответа при удалении:', response.status, response.statusText);
+
+      if (response.status === 204 || response.status === 202) {
+        // Успешное удаление
+        return { success: true };
+      } else if (response.status === 404) {
+        throw new Error('Файл не найден: ' + path);
+      } else if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Успешное удаление:', data);
+      callback(null, data);
+    })
+    .catch(error => {
+      console.error('Ошибка удаления:', error);
+      callback(error, null);
     });
   }
 
@@ -151,7 +189,18 @@ class Yandex {
             callback(err, null);
           }
         } else {
+          console.log('Полный ответ от Яндекс.Диска:', response);
           const files = response._embedded ? response._embedded.items : [];
+
+          // Добавим отладку для каждого файла
+          files.forEach((file, index) => {
+            console.log(`Файл ${index + 1}:`, {
+              name: file.name,
+              path: file.path,
+              fullPath: file.path,
+              type: file.type
+            });
+          });
 
           // Для каждого файла получаем прямую ссылку для скачивания
           const filesWithLinks = files.map(file => {
