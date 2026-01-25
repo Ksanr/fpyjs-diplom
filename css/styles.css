@@ -159,3 +159,55 @@ i.icon.asterisk.loading {
 .uploaded-previewer-modal .image-preview-container .ui.labeled.icon.button > .icon {
   background: none;
 }
+
+/* Добавим в конец файла */
+
+/* Стили для модального окна управления токенами */
+.token-manager-modal .content {
+  padding: 2em;
+}
+
+.token-manager-modal .field {
+  margin-bottom: 1.5em;
+}
+
+.token-manager-modal .ui.message.info {
+  margin-top: 2em;
+}
+
+.token-manager-modal .ui.toggle.checkbox {
+  margin-top: 10px;
+}
+
+.token-manager-modal .actions {
+  display: flex;
+  justify-content: space-between;
+  padding: 1em;
+}
+
+.token-manager-modal .ui.button {
+  min-width: 120px;
+}
+
+/* Стили для кнопки управления токенами в header */
+.ui.header .token-manager {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #FFD5FF;
+}
+
+.ui.header .token-manager:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* Анимация для сообщений */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ui.positive.message {
+  animation: fadeIn 0.3s ease-out;
+}

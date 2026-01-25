@@ -11,6 +11,9 @@
     <div class="ui container">
       <header class="ui header">
         <h1 class="ui heading neon">Резервное копирование изображений</h1>
+        <button class="ui secondary button token-manager">
+          <i class="key icon"></i> Управление токенами
+        </button>
       </header>
       <div class="ui grid">
         <div class="row">
@@ -55,6 +58,46 @@
         <i class="asterisk loading icon massive"></i>
       </div>
     </div>
+
+    <div class="ui modal token-manager-modal">
+      <div class="header">Управление токенами <i class="x icon"></i></div>
+      <div class="content">
+        <div class="ui form">
+          <div class="field">
+            <label>Токен VK API</label>
+            <input type="password" id="vk-token" placeholder="Введите токен VK API">
+            <div class="ui toggle checkbox" style="margin-top: 10px;">
+              <input type="checkbox" id="show-vk-token">
+              <label>Показать токен</label>
+            </div>
+          </div>
+          <div class="ui divider"></div>
+          <div class="field">
+            <label>Токен Яндекс.Диска (OAuth)</label>
+            <input type="password" id="yandex-token" placeholder="Введите OAuth токен Яндекс.Диска">
+            <div class="ui toggle checkbox" style="margin-top: 10px;">
+              <input type="checkbox" id="show-yandex-token">
+              <label>Показать токен</label>
+            </div>
+          </div>
+          <div class="ui message info">
+            <div class="header">Информация о токенах</div>
+            <ul class="list">
+              <li>Токен VK используется для получения фотографий из профилей</li>
+              <li>Токен Яндекс.Диска используется для загрузки и управления файлами в облаке</li>
+              <li>Токены сохраняются только в вашем браузере</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="ui button close-token-modal">Закрыть</div>
+        <div class="ui primary button save-tokens">Сохранить токены</div>
+        <div class="ui red button clear-tokens">Очистить токены</div>
+      </div>
+    </div>
+
+
     <script
       src="https://code.jquery.com/jquery-3.1.1.min.js"
       integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
@@ -70,6 +113,7 @@
     <script src="js/ui/Modals/BaseModal.js"></script>
     <script src="js/ui/Modals/FileUploaderModal.js"></script>
     <script src="js/ui/Modals/PreviewModal.js"></script>
+    <script src="js/ui/Modals/TokenModal.js"></script>
     <script src="js/App.js"></script>
 
     <script>
