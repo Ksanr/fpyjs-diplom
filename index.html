@@ -117,6 +117,12 @@
     <script src="js/App.js"></script>
 
     <script>
+      // Глобальная функция для обработки ошибок загрузки изображений
+      window.handleImageError = function(img) {
+        if (img.src !== 'https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png') {
+          img.src = 'https://yugcleaning.ru/wp-content/themes/consultix/images/no-image-found-360x250.png';
+        }
+      };
       App.init();
     </script>
   </body>

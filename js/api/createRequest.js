@@ -2,8 +2,8 @@
  * Основная функция для совершения запросов по Yandex API.
  */
 const createRequest = (options = {}) => {
-  const xhr = new XMLHttpRequest();
-  xhr.responseType = 'json';
+  // Для простоты используем fetch вместо XMLHttpRequest
+  // Это лучше работает с CORS
 
   // Формируем URL с параметрами
   let url = options.url;
@@ -17,48 +17,34 @@ const createRequest = (options = {}) => {
 
   console.log(`Отправка запроса: ${options.method} ${url}`);
 
-  // Открываем соединение
-  xhr.open(options.method || 'GET', url);
-
-  // Устанавливаем заголовки
-  if (options.headers) {
-    Object.entries(options.headers).forEach(([key, value]) => {
-      xhr.setRequestHeader(key, value);
-      console.log(`Заголовок: ${key}: ${value.substring(0, 20)}...`);
-    });
-  }
-
-  // Обработчик загрузки
-  xhr.onload = () => {
-    console.log(`Ответ получен: ${xhr.status} ${xhr.statusText}`);
-
-    if (xhr.status >= 200 && xhr.status < 300) {
-      if (options.callback) {
-        options.callback(null, xhr.response);
-      }
-    } else {
-      const error = new Error(`HTTP error ${xhr.status}: ${xhr.statusText}`);
-      console.error('Ошибка HTTP:', xhr.status, xhr.response);
-      if (options.callback) {
-        options.callback(error, xhr.response);
-      }
-    }
+  // Настраиваем заголовки
+  const headers = {
+    ...options.headers,
+    'Accept': 'application/json'
   };
 
-  // Обработчик ошибок
-  xhr.onerror = () => {
-    console.error('Сетевая ошибка при выполнении запроса');
-    if (options.callback) {
-      options.callback(new Error('Network error'), null);
+  // Отправляем запрос
+  fetch(url, {
+    method: options.method || 'GET',
+    headers: headers,
+    mode: 'cors', // Явно указываем режим CORS
+    credentials: 'omit' // Не отправляем куки
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
     }
-  };
-
-  try {
-    xhr.send();
-  } catch (err) {
-    console.error('Исключение при отправке запроса:', err);
+    return response.json();
+  })
+  .then(data => {
     if (options.callback) {
-      options.callback(err, null);
+      options.callback(null, data);
     }
-  }
+  })
+  .catch(error => {
+    console.error('Ошибка при выполнении запроса:', error);
+    if (options.callback) {
+      options.callback(error, null);
+    }
+  });
 };
