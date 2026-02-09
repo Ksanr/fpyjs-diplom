@@ -150,13 +150,8 @@ class PreviewModal extends BaseModal {
     console.log('Отрисовываем файлы:', data);
 
     try {
-      // Сортируем файлы по дате изменения (новые сверху)
-      const sortedData = [...data].sort((a, b) => {
-        return new Date(b.modified) - new Date(a.modified);
-      });
-
       // Формируем HTML для каждого файла
-      const html = sortedData.map(item => this.getImageInfo(item)).join('');
+      const html = data.map(item => this.getImageInfo(item)).join('');
       content.innerHTML = html;
 
     } catch (error) {
@@ -236,16 +231,8 @@ class PreviewModal extends BaseModal {
     const date = this.formatDate(item.modified);
     const path = item.path || '';
     const isImage = this.isImageFile(name);
-
-    // Добавил отладку
-    console.log('Информация о файле для отображения:');
-    console.log('- Имя:', name);
-    console.log('- Путь из API:', item.path);
-    console.log('- Форматированный путь:', path);
-
-    // Используем прямую ссылку из item.file для изображения
-    const imageUrl = item.file || '';
-    const downloadUrl = item.downloadUrl || item.file || '';
+    const previewUrl = item.previewUrl || '';
+    const downloadUrl = item.file || '';
 
     // Убираем папку /vk/ из отображаемого имени
     const displayName = name.startsWith('/vk/') ? name.substring(4) : name;
@@ -255,13 +242,13 @@ class PreviewModal extends BaseModal {
       ? displayName.substring(0, 27) + '...'
       : displayName;
 
-    // Для изображений используем прямую ссылку из item.file
+    // Для изображений используем полученную публичную ссылку для предпросмотра
     // Для не-изображений показываем иконку
     let imageHtml = '';
 
-    if (isImage && imageUrl) {
+    if (isImage && previewUrl) {
       imageHtml = `
-        <img src="${imageUrl}"
+        <img src="${previewUrl}"
           alt="${displayName}"
           style="width: 100%; height: 200px; object-fit: contain;"
           onerror="window.handleImageError(this)" />

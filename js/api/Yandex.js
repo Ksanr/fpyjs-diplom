@@ -45,23 +45,15 @@ class Yandex {
         'Authorization': `OAuth ${token}`
       },
       data: {
-        path: fullPath,  // Не кодируем здесь!
+        path: fullPath,
         url: url
       },
       callback: (err, response) => {
         if (err) {
           callback(err, response);
         } else {
-          // Для загрузки по URL Яндекс.Диск возвращает 202 Accepted
-          // и начинает загрузку в фоне. Файл может быть недоступен сразу.
-
-          // Проверяем, является ли ответ 202 Accepted
           if (response && (response.operation_id || response.href)) {
-            // Загрузка началась успешно, но файл еще создается
-            // Не пытаемся получить информацию сразу
             console.log('Загрузка файла начата:', fullPath);
-
-            // Можно вернуть специальный объект
             callback(null, {
               success: true,
               path: fullPath,
@@ -107,6 +99,35 @@ class Yandex {
   }
 
   /**
+   * Получает публичную ссылку на файл
+   */
+  static getPublicUrl(path, callback) {
+    const token = Yandex.getToken();
+    if (!token) {
+      callback(new Error('Токен Яндекс.Диска не установлен'), null);
+      return;
+    }
+
+    createRequest({
+      method: 'GET',
+      url: `${Yandex.HOST}/resources/download`,
+      headers: {
+        'Authorization': `OAuth ${token}`
+      },
+      data: {
+        path: path
+      },
+      callback: (err, response) => {
+        if (err) {
+          callback(err, null);
+        } else {
+          callback(null, response.href);
+        }
+      }
+    });
+  }
+
+  /**
    * Метод удаления файла из облака
    */
   static removeFile(path, callback) {
@@ -120,9 +141,6 @@ class Yandex {
 
     console.log('Удаление файла по пути:', path);
 
-    // Формируем правильный URL
-    // Яндекс.Диск API ожидает путь в формате "disk:/vk/..."
-    // и требует однократного кодирования
     const encodedPath = encodeURIComponent(path);
     const url = `${Yandex.HOST}/resources?path=${encodedPath}&permanently=true`;
 
@@ -139,7 +157,6 @@ class Yandex {
       console.log('Статус ответа при удалении:', response.status, response.statusText);
 
       if (response.status === 204 || response.status === 202) {
-        // Успешное удаление
         return { success: true };
       } else if (response.status === 404) {
         throw new Error('Файл не найден: ' + path);
@@ -192,42 +209,70 @@ class Yandex {
           console.log('Полный ответ от Яндекс.Диска:', response);
           const files = response._embedded ? response._embedded.items : [];
 
-          // Добавим отладку для каждого файла
-          files.forEach((file, index) => {
-            console.log(`Файл ${index + 1}:`, {
-              name: file.name,
-              path: file.path,
-              fullPath: file.path,
-              type: file.type
-            });
-          });
-
-          // Для каждого файла получаем прямую ссылку для скачивания
-          const filesWithLinks = files.map(file => {
-            // Если у файла уже есть ссылка file, используем ее
-            if (file.file) {
-              return {
-                ...file,
-                downloadUrl: file.file
-              };
-            }
-
-            // Иначе пробуем получить ссылку для скачивания
-            const cachedUrl = Yandex.publicUrlCache.get(file.path);
-            if (cachedUrl) {
-              return {
-                ...file,
-                downloadUrl: cachedUrl
-              };
-            }
-
-            return file;
-          });
-
-          callback(null, filesWithLinks);
+          // Для каждого файла получаем публичную ссылку для предпросмотра
+          this.getPublicUrlsForFiles(files, callback);
         }
       }
     });
+  }
+
+  /**
+   * Получает публичные ссылки для всех файлов
+   */
+  static getPublicUrlsForFiles(files, callback) {
+    const filesWithUrls = [];
+    let processed = 0;
+    const total = files.length;
+
+    if (total === 0) {
+      callback(null, []);
+      return;
+    }
+
+    files.forEach((file, index) => {
+      const cachedUrl = Yandex.publicUrlCache.get(file.path);
+
+      if (cachedUrl) {
+        // Используем кэшированную ссылку
+        filesWithUrls[index] = {
+          ...file,
+          previewUrl: cachedUrl
+        };
+        processed++;
+        checkAllProcessed();
+      } else {
+        // Получаем новую публичную ссылку
+        Yandex.getPublicUrl(file.path, (err, publicUrl) => {
+          if (err) {
+            console.error('Ошибка при получении публичной ссылки для', file.path, err);
+            // Используем файл без ссылки для предпросмотра
+            filesWithUrls[index] = {
+              ...file,
+              previewUrl: null
+            };
+          } else {
+            // Кэшируем полученную ссылку
+            Yandex.publicUrlCache.set(file.path, publicUrl);
+            filesWithUrls[index] = {
+              ...file,
+              previewUrl: publicUrl
+            };
+          }
+          processed++;
+          checkAllProcessed();
+        });
+      }
+    });
+
+    function checkAllProcessed() {
+      if (processed === total) {
+        // Сортируем файлы по дате изменения
+        const sortedFiles = filesWithUrls.sort((a, b) => {
+          return new Date(b.modified) - new Date(a.modified);
+        });
+        callback(null, sortedFiles);
+      }
+    }
   }
 
   /**
@@ -239,22 +284,17 @@ class Yandex {
       return;
     }
 
-    // Простой способ скачивания - создаем ссылку и кликаем
     const link = document.createElement('a');
     link.href = url;
     link.target = '_blank';
     link.download = '';
 
-    // Пытаемся скачать разными способами
     try {
-      // Способ 1: стандартный клик
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('Ошибка при скачивании:', error);
-
-      // Способ 2: открываем в новом окне
       window.open(url, '_blank');
     }
   }
