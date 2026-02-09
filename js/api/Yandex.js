@@ -80,14 +80,14 @@ class Yandex {
 
     createRequest({
       method: 'GET',
-      url: `${Yandex.HOST}/resources`,
+      url: `${Yandex.HOST}/resources/files`,
       headers: {
         'Authorization': `OAuth ${token}`
       },
-      data: {
+      /*data: {
         path: encodeURIComponent(path),
         fields: 'name,path,modified,size,file,type'
-      },
+      },*/
       callback: (err, response) => {
         if (err) {
           callback(err, null);
