@@ -79,7 +79,7 @@ class Yandex {
     }
 
     createRequest({
-      method: 'GET', //добавлен files, скрыт data
+      method: 'GET', //добавлен /files, удалён data
       url: `${Yandex.HOST}/resources/files`,
       headers: {
         'Authorization': `OAuth ${token}`
@@ -187,14 +187,14 @@ class Yandex {
     }
 
     createRequest({
-      method: 'GET', //добавлен files, скрыт fields в data, замена response._embedded.items на response.items
-      url: `${Yandex.HOST}/resources/files`,
+      method: 'GET',
+      url: `${Yandex.HOST}/resources`,
       headers: {
         'Authorization': `OAuth ${token}`
       },
       data: {
         path: '/vk',
-        /*fields: '_embedded.items.name,_embedded.items.path,_embedded.items.modified,_embedded.items.size,_embedded.items.type,_embedded.items.file',*/
+        fields: '_embedded.items.name,_embedded.items.path,_embedded.items.modified,_embedded.items.size,_embedded.items.type,_embedded.items.file',
         limit: 100,
         sort: '-modified'
       },
@@ -207,7 +207,7 @@ class Yandex {
           }
         } else {
           console.log('Полный ответ от Яндекс.Диска:', response);
-          const files = response.items ? response.items : [];
+          const files = response._embedded ? response._embedded.items : [];
 
           // Для каждого файла получаем публичную ссылку для предпросмотра
           this.getPublicUrlsForFiles(files, callback);
