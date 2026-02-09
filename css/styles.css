@@ -270,3 +270,72 @@ i.icon.asterisk.loading {
   background-color: #21ba45 !important;
   color: white !important;
 }
+
+/* Стили для пустой папки */
+.ui.placeholder.segment {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px dashed #ddd;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.ui.placeholder.segment .ui.icon.header {
+  color: #6c757d;
+}
+
+.ui.placeholder.segment .ui.icon.header i.icon {
+  font-size: 4em;
+  margin-bottom: 20px;
+}
+
+.ui.placeholder.segment .content {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.ui.placeholder.segment .sub.header {
+  font-weight: normal;
+  line-height: 1.5;
+  color: #868e96;
+}
+
+/* Улучшение отображения изображений */
+.uploaded-previewer-modal .image-wrapper {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 15px;
+}
+
+.uploaded-previewer-modal .no-image,
+.uploaded-previewer-modal .file-icon {
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .uploaded-previewer-modal .image-preview-container {
+    flex-direction: column;
+  }
+
+  .uploaded-previewer-modal .image-wrapper {
+    margin-bottom: 15px;
+  }
+
+  .uploaded-previewer-modal .image-wrapper img {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .uploaded-previewer-modal .buttons-wrapper {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .uploaded-previewer-modal .buttons-wrapper button {
+    width: 100%;
+  }
+}
