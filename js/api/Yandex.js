@@ -99,31 +99,73 @@ class Yandex {
   }
 
   /**
-   * Получает публичную ссылку на файл
-   */
+  * Получает публичную ссылку на файл (публикует, если необходимо)
+  */
   static getPublicUrl(path, callback) {
     const token = Yandex.getToken();
     if (!token) {
-      callback(new Error('Токен Яндекс.Диска не установлен'), null);
-      return;
+        callback(new Error('Токен Яндекс.Диска не установлен'), null);
+        return;
     }
 
+    // Сначала проверяем, есть ли уже публичная ссылка у файла
     createRequest({
-      method: 'GET',
-      url: `${Yandex.HOST}/resources/download`,
-      headers: {
-        'Authorization': `OAuth ${token}`
-      },
-      data: {
-        path: path
-      },
-      callback: (err, response) => {
-        if (err) {
-          callback(err, null);
-        } else {
-          callback(null, response.href);
+        method: 'GET',
+        url: `${Yandex.HOST}/resources`,
+        headers: {
+            'Authorization': `OAuth ${token}`
+        },
+        data: {
+            path: path,
+            fields: 'public_url'
+        },
+        callback: (err, response) => {
+            if (err) {
+                callback(err, null);
+                return;
+            }
+            if (response.public_url) {
+                // Уже опубликован — используем существующую ссылку
+                callback(null, response.public_url);
+            } else {
+                // Публикуем файл
+                createRequest({
+                    method: 'PUT',
+                    url: `${Yandex.HOST}/resources/publish`,
+                    headers: {
+                        'Authorization': `OAuth ${token}`
+                    },
+                    data: {
+                        path: path
+                    },
+                    callback: (publishErr) => {
+                        if (publishErr) {
+                            callback(publishErr, null);
+                        } else {
+                            // После публикации получаем public_url
+                            createRequest({
+                                method: 'GET',
+                                url: `${Yandex.HOST}/resources`,
+                                headers: {
+                                    'Authorization': `OAuth ${token}`
+                                },
+                                data: {
+                                    path: path,
+                                    fields: 'public_url'
+                                },
+                                callback: (finalErr, finalResponse) => {
+                                    if (finalErr) {
+                                        callback(finalErr, null);
+                                    } else {
+                                        callback(null, finalResponse.public_url || null);
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            }
         }
-      }
     });
   }
 
