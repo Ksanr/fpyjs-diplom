@@ -179,42 +179,58 @@ class Yandex {
   /**
    * Метод получения всех загруженных файлов в облаке
    */
+  // Метод getUploadedFiles
+  /**
+ * Метод получения всех загруженных файлов в облаке из папки /vk
+ */
   static getUploadedFiles(callback) {
     const token = Yandex.getToken();
     if (!token) {
-      callback(new Error('Токен Яндекс.Диска не установлен'), null);
-      return;
+        callback(new Error('Токен Яндекс.Диска не установлен'), null);
+        return;
     }
 
     createRequest({
-      method: 'GET',
-      url: `${Yandex.HOST}/resources`,
-      headers: {
-        'Authorization': `OAuth ${token}`
-      },
-      data: {
-        path: '/vk',
-        fields: '_embedded.items.name,_embedded.items.path,_embedded.items.modified,_embedded.items.size,_embedded.items.type,_embedded.items.file',
-        limit: 100,
-        sort: '-modified'
-      },
-      callback: (err, response) => {
-        if (err) {
-          if (err.message && err.message.includes('404')) {
-            callback(null, []);
-          } else {
-            callback(err, null);
-          }
-        } else {
-          console.log('Полный ответ от Яндекс.Диска:', response);
-          const files = response._embedded ? response._embedded.items : [];
+        method: 'GET',
+        url: `${Yandex.HOST}/resources/files`,
+        headers: {
+            'Authorization': `OAuth ${token}`
+        },
+        data: {
+            fields: 'name,path,modified,size,type,file',
+            limit: 100,
+            sort: '-modified'
+        },
+        callback: (err, response) => {
+            if (err) {
+                console.error('Ошибка получения файлов:', err);
+                callback(err, null);
+            } else {
+                console.log('Полный ответ от /resources/files:', response);
 
-          // Для каждого файла получаем публичную ссылку для предпросмотра
-          this.getPublicUrlsForFiles(files, callback);
+                // Извлекаем массив файлов (API возвращает items)
+                const items = response.items || [];
+                console.log('Все файлы на диске:', items.map(item => item.path));
+
+                // Фильтруем файлы, которые находятся в папке /vk
+                // Путь может быть: "/vk/photo.jpg", "disk:/vk/photo.jpg", "/disk/vk/photo.jpg" и т.п.
+                // Проверяем наличие подстроки "/vk/" в пути
+                const files = items.filter(item =>
+                    item.path && item.path.includes('/vk/')
+                );
+
+                console.log('Отфильтрованные файлы из /vk:', files.map(item => item.path));
+
+                if (files.length === 0) {
+                    console.log('В папке /vk нет файлов или фильтр не сработал');
+                }
+
+                // Получаем публичные ссылки для предпросмотра
+                this.getPublicUrlsForFiles(files, callback);
+            }
         }
-      }
     });
-  }
+    }
 
   /**
    * Получает публичные ссылки для всех файлов

@@ -232,7 +232,8 @@ class PreviewModal extends BaseModal {
     const path = item.path || '';
     const isImage = this.isImageFile(name);
     const previewUrl = item.previewUrl || '';
-    const downloadUrl = item.file || '';
+    // Вместо const downloadUrl = item.file || '';
+    const downloadUrl = item.previewUrl || item.file || '';
 
     // Убираем папку /vk/ из отображаемого имени
     const displayName = name.startsWith('/vk/') ? name.substring(4) : name;
