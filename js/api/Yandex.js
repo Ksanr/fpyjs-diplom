@@ -205,32 +205,28 @@ class Yandex {
             if (err) {
                 console.error('Ошибка получения файлов:', err);
                 callback(err, null);
-            } else {
-                console.log('Полный ответ от /resources/files:', response);
-
-                // Извлекаем массив файлов (API возвращает items)
-                const items = response.items || [];
-                console.log('Все файлы на диске:', items.map(item => item.path));
-
-                // Фильтруем файлы, которые находятся в папке /vk
-                // Путь может быть: "/vk/photo.jpg", "disk:/vk/photo.jpg", "/disk/vk/photo.jpg" и т.п.
-                // Проверяем наличие подстроки "/vk/" в пути
-                const files = items.filter(item =>
-                    item.path && item.path.includes('/vk/')
-                );
-
-                console.log('Отфильтрованные файлы из /vk:', files.map(item => item.path));
-
-                if (files.length === 0) {
-                    console.log('В папке /vk нет файлов или фильтр не сработал');
-                }
-
-                // Получаем публичные ссылки для предпросмотра
-                this.getPublicUrlsForFiles(files, callback);
+                return;
             }
+
+            // Проверяем структуру ответа
+            const items = response.items || response._embedded?.items || [];
+            console.log('Все файлы на диске:', items.map(item => item.path));
+
+            // Фильтруем файлы, содержащие '/vk/' в пути
+            const vkFiles = items.filter(item =>
+                item.path && item.path.includes('/vk/')
+            );
+            console.log('Файлы в папке /vk:', vkFiles.map(item => item.path));
+
+            if (vkFiles.length === 0) {
+                console.log('Папка /vk пуста или не найдена');
+            }
+
+            // Получаем публичные ссылки для предпросмотра
+            this.getPublicUrlsForFiles(vkFiles, callback);
         }
     });
-    }
+  }
 
   /**
    * Получает публичные ссылки для всех файлов
@@ -241,54 +237,34 @@ class Yandex {
     const total = files.length;
 
     if (total === 0) {
-      callback(null, []);
-      return;
+        callback(null, []);
+        return;
     }
 
     files.forEach((file, index) => {
-      const cachedUrl = Yandex.publicUrlCache.get(file.path);
-
-      if (cachedUrl) {
-        // Используем кэшированную ссылку
-        filesWithUrls[index] = {
-          ...file,
-          previewUrl: cachedUrl
-        };
-        processed++;
-        checkAllProcessed();
-      } else {
-        // Получаем новую публичную ссылку
-        Yandex.getPublicUrl(file.path, (err, publicUrl) => {
-          if (err) {
-            console.error('Ошибка при получении публичной ссылки для', file.path, err);
-            // Используем файл без ссылки для предпросмотра
-            filesWithUrls[index] = {
-              ...file,
-              previewUrl: null
-            };
-          } else {
-            // Кэшируем полученную ссылку
-            Yandex.publicUrlCache.set(file.path, publicUrl);
-            filesWithUrls[index] = {
-              ...file,
-              previewUrl: publicUrl
-            };
-          }
-          processed++;
-          checkAllProcessed();
-        });
-      }
+        const cachedUrl = Yandex.publicUrlCache.get(file.path);
+        if (cachedUrl) {
+            filesWithUrls[index] = { ...file, previewUrl: cachedUrl };
+            processed++;
+            if (processed === total) {
+                callback(null, filesWithUrls.sort((a, b) => new Date(b.modified) - new Date(a.modified)));
+            }
+        } else {
+            Yandex.getPublicUrl(file.path, (err, publicUrl) => {
+                if (err) {
+                    console.error(`Не удалось получить публичную ссылку для ${file.path}:`, err);
+                    filesWithUrls[index] = { ...file, previewUrl: null };
+                } else {
+                    Yandex.publicUrlCache.set(file.path, publicUrl);
+                    filesWithUrls[index] = { ...file, previewUrl: publicUrl };
+                }
+                processed++;
+                if (processed === total) {
+                    callback(null, filesWithUrls.sort((a, b) => new Date(b.modified) - new Date(a.modified)));
+                }
+            });
+        }
     });
-
-    function checkAllProcessed() {
-      if (processed === total) {
-        // Сортируем файлы по дате изменения
-        const sortedFiles = filesWithUrls.sort((a, b) => {
-          return new Date(b.modified) - new Date(a.modified);
-        });
-        callback(null, sortedFiles);
-      }
-    }
   }
 
   /**

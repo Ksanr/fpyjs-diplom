@@ -302,10 +302,10 @@ class PreviewModal extends BaseModal {
             Удалить
           </button>
           <button class="ui labeled icon violet basic button download"
-                  data-file="${downloadUrl}"
-                  data-filename="${displayName}"
-                  title="Скачать файл на компьютер"
-                  ${!downloadUrl ? 'disabled' : ''}>
+              data-file="${downloadUrl}"
+              data-filename="${displayName}"
+              title="${!downloadUrl ? 'Ссылка на скачивание недоступна' : 'Скачать файл'}"
+              ${!downloadUrl ? 'disabled' : ''}>
             <i class="download icon"></i>
             Скачать
           </button>
