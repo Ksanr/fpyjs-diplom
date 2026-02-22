@@ -108,64 +108,67 @@ class Yandex {
         return;
     }
 
-    // Сначала проверяем, есть ли уже публичная ссылка у файла
-    createRequest({
-        method: 'GET',
-        url: `${Yandex.HOST}/resources`,
-        headers: {
-            'Authorization': `OAuth ${token}`
-        },
-        data: {
-            path: path,
-            fields: 'public_url'
-        },
-        callback: (err, response) => {
-            if (err) {
-                callback(err, null);
-                return;
-            }
-            if (response.public_url) {
-                // Уже опубликован — используем существующую ссылку
-                callback(null, response.public_url);
-            } else {
-                // Публикуем файл
-                createRequest({
-                    method: 'PUT',
-                    url: `${Yandex.HOST}/resources/publish`,
-                    headers: {
-                        'Authorization': `OAuth ${token}`
-                    },
-                    data: {
-                        path: path
-                    },
-                    callback: (publishErr) => {
-                        if (publishErr) {
-                            callback(publishErr, null);
-                        } else {
-                            // После публикации получаем public_url
-                            createRequest({
-                                method: 'GET',
-                                url: `${Yandex.HOST}/resources`,
-                                headers: {
-                                    'Authorization': `OAuth ${token}`
-                                },
-                                data: {
-                                    path: path,
-                                    fields: 'public_url'
-                                },
-                                callback: (finalErr, finalResponse) => {
-                                    if (finalErr) {
-                                        callback(finalErr, null);
-                                    } else {
-                                        callback(null, finalResponse.public_url || null);
+    // Шаг 1: Проверяем, опубликован ли файл, и получаем public_key
+    const ensurePublished = (cb) => {
+        createRequest({
+            method: 'GET',
+            url: `${Yandex.HOST}/resources`,
+            headers: { 'Authorization': `OAuth ${token}` },
+            data: { path: path, fields: 'public_url' },
+            callback: (err, response) => {
+                if (err) {
+                    cb(err);
+                    return;
+                }
+                if (response.public_url) {
+                    cb(null, response.public_url);
+                } else {
+                    // Публикуем файл
+                    createRequest({
+                        method: 'PUT',
+                        url: `${Yandex.HOST}/resources/publish`,
+                        headers: { 'Authorization': `OAuth ${token}` },
+                        data: { path: path },
+                        callback: (publishErr) => {
+                            if (publishErr) {
+                                cb(publishErr);
+                            } else {
+                                // Повторно запрашиваем public_url
+                                createRequest({
+                                    method: 'GET',
+                                    url: `${Yandex.HOST}/resources`,
+                                    headers: { 'Authorization': `OAuth ${token}` },
+                                    data: { path: path, fields: 'public_url' },
+                                    callback: (finalErr, finalResponse) => {
+                                        if (finalErr) {
+                                            cb(finalErr);
+                                        } else {
+                                            cb(null, finalResponse.public_url);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                }
             }
+        });
+    };
+
+    ensurePublished((err, publicKey) => {
+        if (err || !publicKey) {
+            callback(err || new Error('Не удалось получить публичную ссылку'), null);
+            return;
         }
+
+        // Шаг 2: Получаем прямую ссылку на скачивание по public_key
+        Yandex.getPublicDownloadUrl(publicKey, (dlErr, downloadUrl) => {
+            if (dlErr) {
+                callback(dlErr, null);
+            } else {
+                callback(null, downloadUrl);
+            }
+        });
     });
   }
 
@@ -392,6 +395,25 @@ class Yandex {
           callback(null, response);
         }
       }
+    });
+  }
+
+  /**
+  * Получает прямую ссылку на скачивание по публичной ссылке (public_key)
+  */
+  static getPublicDownloadUrl(publicKey, callback) {
+    createRequest({
+        method: 'GET',
+        url: `${Yandex.HOST}/public/resources/download`,
+        headers: {}, // Без авторизации!
+        data: { public_key: publicKey },
+        callback: (err, response) => {
+            if (err) {
+                callback(err, null);
+            } else {
+                callback(null, response.href);
+            }
+        }
     });
   }
 }

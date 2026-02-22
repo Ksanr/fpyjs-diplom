@@ -251,6 +251,8 @@ class PreviewModal extends BaseModal {
       imageHtml = `
         <img src="${previewUrl}"
           alt="${displayName}"
+          referrerpolicy="no-referrer"
+          crossorigin="anonymous"
           style="width: 100%; height: 200px; object-fit: contain;"
           onerror="window.handleImageError(this)" />
       `;
